@@ -1,32 +1,9 @@
----
-title: "Homework 6"
-output: github_document
----
+Homework 6
+================
 
-```{r library import, echo = FALSE, message = FALSE}
-library(tidyverse)
-set.seed(1)
-
-knitr::opts_chunk$set(
-	echo = TRUE,
-	warning = FALSE,
-	fig.width = 8, 
-  fig.height = 6,
-  out.width = "90%"
-)
-
-theme_set(theme_minimal() + theme(legend.position = "bottom"))
-
-options(
-  ggplot2.continuous.colour = "viridis",
-  ggplot2.continuous.fill = "viridis"
-)
-
-scale_colour_discrete = scale_colour_viridis_d
-scale_fill_discrete = scale_fill_viridis_d
-```
 ## Problem 1
-```{r}
+
+``` r
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -40,7 +17,13 @@ weather_df =
   select(name, id, everything())
 ```
 
-```{r}
+    ## using cached file: /Users/lizy_choi/Library/Caches/org.R-project.R/R/rnoaa/noaa_ghcnd/USW00094728.dly
+
+    ## date created (size, mb): 2024-10-29 11:14:06.133018 (8.656)
+
+    ## file min/max dates: 1869-01-01 / 2024-10-31
+
+``` r
 set.seed(1)
 
 bootstrap_weather = 
@@ -52,7 +35,7 @@ bootstrap_weather =
     fit = map(models, broom::glance))
 ```
 
-```{r}
+``` r
 bootstrap_results = 
   bootstrap_weather%>%
   unnest(results) %>% 
@@ -67,8 +50,10 @@ bootstrap_results =
   unnest(fit) %>% 
   select(log_betas, adj.r.squared)
 ```
+
 ## Plotting distribution of the estimate
-```{r}
+
+``` r
 bootstrap_results %>% 
   ggplot(aes(x = adj.r.squared)) + 
   geom_histogram() + 
@@ -77,7 +62,13 @@ bootstrap_results %>%
     x = "Adjusted R Squared",
     y = "Frequency"
   )
+```
 
+    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+
+<img src="homework_6_files/figure-gfm/unnamed-chunk-4-1.png" width="90%" />
+
+``` r
 bootstrap_results %>% 
   ggplot(aes(x = log_betas)) +
   geom_histogram()+
@@ -87,9 +78,14 @@ bootstrap_results %>%
     y = "Frequency"
   )
 ```
-We can observe that both of the plots, the adjusted R-squared and the log (B0 * B1) demonstrate normal distributions. 
 
-```{r}
+    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+
+<img src="homework_6_files/figure-gfm/unnamed-chunk-4-2.png" width="90%" />
+We can observe that both of the plots, the adjusted R-squared and the
+log (B0 \* B1) demonstrate normal distributions.
+
+``` r
 bootstrap_results %>%
   summarize(
     ci_lower_r2 = quantile(adj.r.squared, 0.025), 
@@ -97,11 +93,16 @@ bootstrap_results %>%
     ci_lower_betas = quantile(log_betas, 0.025), 
     ci_upper_betas = quantile(log_betas, 0.975)
   )
-
 ```
+
+    ## # A tibble: 1 × 4
+    ##   ci_lower_r2 ci_upper_r2 ci_lower_betas ci_upper_betas
+    ##         <dbl>       <dbl>          <dbl>          <dbl>
+    ## 1       0.893       0.927           1.96           2.06
+
 ## Problem 2
 
-```{r}
+``` r
 homicide = read.csv("data/homicide-data.csv") %>% 
   unite("city_state", city:state, sep = ', ', na.rm = TRUE)%>% 
   mutate(
@@ -114,4 +115,3 @@ homicide = read.csv("data/homicide-data.csv") %>%
     victim_race %in% c("White", "Black")
   )
 ```
-

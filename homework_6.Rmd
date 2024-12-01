@@ -1,0 +1,84 @@
+---
+title: "Homework 6"
+output: github_document
+---
+
+```{r library import, echo = FALSE, message = FALSE}
+library(tidyverse)
+set.seed(1)
+
+knitr::opts_chunk$set(
+	echo = TRUE,
+	warning = FALSE,
+	fig.width = 8, 
+  fig.height = 6,
+  out.width = "90%"
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+```
+## Problem 1
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+```{r}
+bootstrap_weather = 
+  weather_df %>%   
+  modelr::bootstrap(n = 5000) %>% 
+  mutate(
+    models = map(strap, \(df) lm(tmax ~ tmin, data = df)),
+    results = map(models, broom::tidy),
+    fit = map(models, broom::glance))
+
+bootstrap_results = 
+  bootstrap_weather%>%  
+  select(results) %>% 
+  unnest(results)
+
+bootstrap_fit = 
+  bootstrap_weather %>% 
+  select(fit) %>% 
+  unnest(fit)
+```
+
+```{r}
+bootstrap_results %>% 
+  group_by(term) %>% 
+  summarize(
+    ci_lower = quantile(estimate, 0.025), 
+    ci_upper = quantile(estimate, 0.975)
+  )
+```
+## Problem 2
+
+```{r}
+homicide = read.csv("data/homicide-data.csv") %>% 
+  unite("city_state", city:state, sep = ', ', na.rm = TRUE)%>% 
+  mutate(
+    city_state = str_replace(city_state, "Milwaukee, wI", "Milwaukee, WI"),
+    victim_age = as.numeric(victim_age)
+  ) %>% 
+  filter(city_state != c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL")) %>%
+  filter(victim_race == c("white", "black"))
+```
+

@@ -96,8 +96,10 @@ bootstrap_results %>%
     ci_upper_r2 = quantile(adj.r.squared, 0.975),
     ci_lower_betas = quantile(log_betas, 0.025), 
     ci_upper_betas = quantile(log_betas, 0.975)
-  )
-
+  ) %>% 
+  unite("adjusted R_squared confidence interval", ci_lower_r2:ci_upper_r2, sep = ", ") %>% 
+  unite("log product of betas confidence interval", ci_lower_betas:ci_upper_betas, sep = ", ") %>% 
+  knitr::kable()
 ```
 ## Problem 2
 
@@ -107,11 +109,88 @@ homicide = read.csv("data/homicide-data.csv") %>%
   mutate(
     city_state = str_replace(city_state, "Milwaukee, wI", "Milwaukee, WI"),
     victim_age = as.numeric(victim_age),
-    
+    unsolved = ifelse(disposition %in% c("Closed without arrest", "Open/No arrest"), 0, 1)
   ) %>% 
   filter(
     !(city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL")),
     victim_race %in% c("White", "Black")
   )
+```
+
+## glm
+```{r}
+baltimore =
+  homicide %>% 
+  filter(city_state == "Baltimore, MD") 
+
+baltimore_glm = 
+  baltimore%>% 
+  glm(unsolved ~ victim_age + victim_race + victim_sex, data =., family = binomial()) %>% 
+  broom::tidy(conf.int = TRUE) %>% 
+  mutate(
+    OR = exp(estimate)) %>% 
+  select(term, log_OR = estimate, OR, conf.low, conf.high) %>% 
+  knitr::kable(digits = 4)
+
+```
+## each cities
+```{r}
+glm_city = function(df) {
+    glm(unsolved ~ victim_age + victim_race + victim_sex, data =df, family = binomial()) %>%
+    broom::tidy() %>%
+    mutate(
+    OR = exp(estimate),
+    CI_low = exp(estimate - 1.96 * std.error),
+    CI_upper = exp(estimate + 1.96 * std.error)
+    )
+}
+
+city_state_glm = 
+  homicide %>% 
+  select(city_state, unsolved, victim_race, victim_age, victim_sex) %>% 
+  nest(data = unsolved:victim_sex) %>% 
+  mutate(
+    glm_result = map(data,glm_city)
+    ) %>%
+  filter(term == "victim_sexMale") %>% 
+  unnest(glm_result) %>% 
+  select(term, log_OR = estimate, OR, conf.low, conf.high)
+
+
+
+```
+
+# Problem 3
+```{r}
+birthweight = read_csv("data/birthweight.csv") %>% 
+  mutate(
+    babysex = as.factor(babysex),
+    babysex = case_match(babysex,
+      1 ~ "male",
+      2 ~ "female"
+    ),
+    frace = case_match(
+      frace,
+      1 ~ "White",
+      2~ "Black",
+      3 ~ "Asian", 
+      4 ~ "Puerto Rican",
+      8 ~ "Other",
+      9 ~ "Unknown"
+    ),
+    malform = case_match(
+      malform,
+      0 ~ "absent",
+      1 ~ "present"
+    ),
+    mrace = case_match(
+      mrace,
+      1 ~ "White",
+      2 ~ "Black",
+      3 ~ "Asian",
+      4 ~ "Puerto Rican",
+      8 ~ "Other"
+    )) %>% 
+  drop_na()
 ```
 

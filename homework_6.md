@@ -92,13 +92,15 @@ bootstrap_results %>%
     ci_upper_r2 = quantile(adj.r.squared, 0.975),
     ci_lower_betas = quantile(log_betas, 0.025), 
     ci_upper_betas = quantile(log_betas, 0.975)
-  )
+  ) %>% 
+  unite("adjusted R_squared confidence interval", ci_lower_r2:ci_upper_r2, sep = ", ") %>% 
+  unite("log product of betas confidence interval", ci_lower_betas:ci_upper_betas, sep = ", ") %>% 
+  knitr::kable()
 ```
 
-    ## # A tibble: 1 × 4
-    ##   ci_lower_r2 ci_upper_r2 ci_lower_betas ci_upper_betas
-    ##         <dbl>       <dbl>          <dbl>          <dbl>
-    ## 1       0.893       0.927           1.96           2.06
+| adjusted R_squared confidence interval | log product of betas confidence interval |
+|:---|:---|
+| 0.893375487712946, 0.92690515445239 | 1.9649486928301, 2.05888745920792 |
 
 ## Problem 2
 
@@ -108,10 +110,28 @@ homicide = read.csv("data/homicide-data.csv") %>%
   mutate(
     city_state = str_replace(city_state, "Milwaukee, wI", "Milwaukee, WI"),
     victim_age = as.numeric(victim_age),
-    
+    unsolved = ifelse(disposition %in% c("Closed without arrest", "Open/No arrest"), 0, 1)
   ) %>% 
   filter(
     !(city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL")),
     victim_race %in% c("White", "Black")
   )
 ```
+
+## glm
+
+``` r
+baltimore =
+  homicide %>% 
+  filter(city_state == "Baltimore, MD") 
+
+baltimore_glm = 
+  baltimore%>% 
+  glm(unsolved ~ victim_age + victim_race + victim_sex, data =., family = binomial()) %>% 
+  broom::tidy(conf.int = TRUE) %>% 
+  mutate(
+    odds_ratio = exp(estimate)) %>% 
+  select(term, log_odds_ratio = estimate, odds_ratio, conf.low, conf.high)
+```
+
+## each cities

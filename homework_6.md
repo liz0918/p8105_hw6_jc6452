@@ -17,12 +17,6 @@ weather_df =
   select(name, id, everything())
 ```
 
-    ## using cached file: /Users/lizychoi/Library/Caches/org.R-project.R/R/rnoaa/noaa_ghcnd/USW00094728.dly
-
-    ## date created (size, mb): 2024-10-30 19:14:47.212289 (8.656)
-
-    ## file min/max dates: 1869-01-01 / 2024-10-31
-
 ``` r
 set.seed(1)
 
@@ -51,7 +45,7 @@ bootstrap_results =
   select(log_betas, adj.r.squared)
 ```
 
-## Plotting distribution of the estimate
+### Plotting distribution of the estimate
 
 ``` r
 bootstrap_results %>% 
@@ -119,7 +113,7 @@ homicide = read.csv("data/homicide-data.csv") %>%
   ) 
 ```
 
-## glm fpr Baltimore
+### glm fpr Baltimore
 
 ``` r
 baltimore =
@@ -139,7 +133,7 @@ baltimore_glm =
   knitr::kable(digits = 3)
 ```
 
-## each cities
+### each cities
 
 ``` r
 glm_city = function(df) {
@@ -217,7 +211,7 @@ city_state_glm %>%
 | Tulsa, OK          | 1.071 |  0.585 |    1.959 |
 | Washington, DC     | 0.773 |  0.480 |    1.244 |
 
-## Plotting Oddds Ratio of Each City State
+### Plotting Oddds Ratio of Each City State
 
 ``` r
 city_state_glm %>% 
@@ -234,8 +228,12 @@ city_state_glm %>%
 ```
 
 <img src="homework_6_files/figure-gfm/unnamed-chunk-9-1.png" width="90%" />
+Based on the plot above, the highest odds ratio for solving homicides in
+Albuquerque, NM. On the other hand, th elowest odds ratio for solving
+homicides is observed in New York, NY, which is understandable as there
+is limited police compared to the crime committed in the city.
 
-# Problem 3
+## Problem 3
 
 ``` r
 birthweight = read_csv("data/birthweight.csv") %>% 
@@ -264,7 +262,7 @@ sum(is.na(birthweight))
 
 Based on this result, 0,all the values seem to be present.
 
-## My birthweight model
+### My birthweight model
 
 ``` r
 birthweight_lm = 
@@ -299,9 +297,57 @@ summary(birthweight_lm)
     ## Multiple R-squared:  0.7017, Adjusted R-squared:  0.7012 
     ## F-statistic:  1457 on 7 and 4334 DF,  p-value: < 2.2e-16
 
-The summary of the linear model suggests that all the variables selected
-were statistically significant predictors of `birthweight.` The adjusted
-R-squared demonstrates to be 0.7012.
+I used the predictors that are most likely to affect birthweight based
+on intuition. While the The summary of the linear model suggests that
+all the variables selected were statistically significant predictors of
+`birthweight.` The adjusted R-squared demonstrates to be 0.7012. I used
+the predictors that are most likely to affect birth weight based on
+intuition. However, of the predictors I have selected, there are some
+predictors that could be interacting with each other. To account for
+this, I will be conducting one more multiple linear regression.
+
+``` r
+birthweight_lm_interaction = 
+  birthweight %>% 
+  lm(bwt ~babysex + bhead + blength + ppbmi +  gaweeks + momage + delwt + ppbmi*delwt + gaweeks*bhead + gaweeks*blength, data = .)
+summary(birthweight_lm_interaction)
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = bwt ~ babysex + bhead + blength + ppbmi + gaweeks + 
+    ##     momage + delwt + ppbmi * delwt + gaweeks * bhead + gaweeks * 
+    ##     blength, data = .)
+    ## 
+    ## Residuals:
+    ##      Min       1Q   Median       3Q      Max 
+    ## -1080.70  -184.73    -8.98   172.23  2508.84 
+    ## 
+    ## Coefficients:
+    ##                   Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)     -5.363e+03  7.078e+02  -7.577 4.29e-14 ***
+    ## babysexFemale    3.407e+01  8.679e+00   3.926 8.78e-05 ***
+    ## bhead            1.179e+02  3.962e+01   2.976  0.00294 ** 
+    ## blength          6.685e+01  2.500e+01   2.674  0.00752 ** 
+    ## ppbmi            2.114e-01  5.636e+00   0.038  0.97009    
+    ## gaweeks         -1.808e+01  1.854e+01  -0.975  0.32963    
+    ## momage           5.794e+00  1.109e+00   5.225 1.82e-07 ***
+    ## delwt            5.558e+00  8.079e-01   6.880 6.84e-12 ***
+    ## ppbmi:delwt     -8.892e-02  3.240e-02  -2.744  0.00609 ** 
+    ## bhead:gaweeks    4.956e-01  1.008e+00   0.491  0.62310    
+    ## blength:gaweeks  2.924e-01  6.347e-01   0.461  0.64499    
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 279.7 on 4331 degrees of freedom
+    ## Multiple R-squared:  0.7025, Adjusted R-squared:  0.7018 
+    ## F-statistic:  1022 on 10 and 4331 DF,  p-value: < 2.2e-16
+
+Based on this result, it seems like there are some predictors that
+weren’t statistically significant in including. While the adjusted
+r-squared value have increased slightly, it was at the cost of
+decreasing the degrees of freedom, so I will be keeping the previous
+model, `birthweight_lm` for future problems.
 
 ``` r
 birthweight = 
@@ -324,9 +370,9 @@ birthweight %>%
 
     ## `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'
 
-<img src="homework_6_files/figure-gfm/unnamed-chunk-13-1.png" width="90%" />
+<img src="homework_6_files/figure-gfm/unnamed-chunk-14-1.png" width="90%" />
 
-\#comparing my moel to main effects and other models
+\#comparing my model to main effects and other models
 
 ``` r
 main_effects =
@@ -335,7 +381,7 @@ main_effects =
 
 three_way_interaction = 
   birthweight %>% 
-  lm(bwt ~ bhead * blength * babysex, data =. )
+  lm(bwt ~ bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead * blength * babysex, data =. )
 
 summary(main_effects)
 ```
@@ -366,7 +412,9 @@ summary(three_way_interaction)
 
     ## 
     ## Call:
-    ## lm(formula = bwt ~ bhead * blength * babysex, data = .)
+    ## lm(formula = bwt ~ bhead + blength + babysex + bhead * blength + 
+    ##     bhead * babysex + blength * babysex + bhead * blength * babysex, 
+    ##     data = .)
     ## 
     ## Residuals:
     ##      Min       1Q   Median       3Q      Max 
@@ -403,7 +451,7 @@ cv_results =
   mutate(
     my_model = map(train, \(df) lm(bwt ~babysex + bhead + blength + ppbmi +  gaweeks + momage + delwt, data = df)),
     main_effect_model = map(train, \(df) lm(bwt ~ blength +gaweeks, data = df)),
-    three_way_interaction_model = map(train, \(df) lm(bwt ~ bhead * blength * babysex, data =df))
+    three_way_interaction_model = map(train, \(df) lm(bwt ~ bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead * blength * babysex, data =df))
   ) %>% 
   mutate(
     my_model_rmse = map2_dbl(my_model, test, rmse),
@@ -431,9 +479,8 @@ cv_results %>%
   )
 ```
 
-<img src="homework_6_files/figure-gfm/unnamed-chunk-16-1.png" width="90%" />
-
+<img src="homework_6_files/figure-gfm/unnamed-chunk-17-1.png" width="90%" />
 Through the violin plot, we can observe that the `main_effect_model`
 demonstrates the highest RMSE, indicating poor fit. `my_model` suggests
-to have the lowest RMSE, though it is not a significantly different from
+to have the lowest RMSE, though it is not drastically different from
 `three_way_interaction_model`.

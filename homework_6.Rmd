@@ -29,7 +29,7 @@ library(modelr)
 library(purrr)
 ```
 ## Problem 1
-```{r}
+```{r, message = FALSE}
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -70,7 +70,7 @@ bootstrap_results =
   unnest(fit) %>% 
   select(log_betas, adj.r.squared)
 ```
-## Plotting distribution of the estimate
+### Plotting distribution of the estimate
 ```{r}
 bootstrap_results %>% 
   ggplot(aes(x = adj.r.squared)) + 
@@ -90,7 +90,7 @@ bootstrap_results %>%
     y = "Frequency"
   )
 ```
-We can observe that both of the plots, the adjusted R-squared and the log (B0 * B1) demonstrate normal distributions. 
+We can observe that both of the plots, the adjusted R-squared and the log (B0 * B1) demonstrate normal distributions.
 
 ```{r}
 bootstrap_results %>%
@@ -121,7 +121,7 @@ homicide = read.csv("data/homicide-data.csv") %>%
   ) 
 ```
 
-## glm fpr Baltimore
+### glm fpr Baltimore
 ```{r}
 baltimore =
   homicide %>% 
@@ -140,7 +140,7 @@ baltimore_glm =
   knitr::kable(digits = 3)
 
 ```
-## each cities
+### each cities
 ```{r}
 glm_city = function(df) {
     glm(unsolved ~ victim_age + victim_race + victim_sex, data =df, family = binomial()) %>%
@@ -166,7 +166,7 @@ city_state_glm =
 city_state_glm %>% 
   knitr::kable(digits = 3)
 ```
-## Plotting Oddds Ratio of Each City State 
+### Plotting Oddds Ratio of Each City State 
 ```{r}
 city_state_glm %>% 
   ggplot(aes(x= reorder(city_state, OR), y = OR))+
@@ -180,8 +180,9 @@ city_state_glm %>%
     y = "Odds Ratio"
   )
 ```
+Based on the plot above, the highest odds ratio for solving homicides in Albuquerque, NM. On the other hand, th elowest odds ratio for solving homicides is observed in New York, NY, which is understandable as there is limited police compared to the crime committed in the city.
 
-# Problem 3
+## Problem 3
 ```{r}
 birthweight = read_csv("data/birthweight.csv") %>% 
   janitor::clean_names() %>% 
@@ -196,14 +197,22 @@ sum(is.na(birthweight))
 ```
 Based on this result, `r sum(is.na(birthweight))`,all the values seem to be present.
 
-## My birthweight model
+### My birthweight model
 ```{r}
 birthweight_lm = 
   birthweight %>% 
   lm(bwt ~babysex + bhead + blength + ppbmi +  gaweeks + momage + delwt, data = .)
 summary(birthweight_lm)
 ```
-The summary of the linear model suggests that all the variables selected were statistically significant predictors of `birthweight.` The adjusted R-squared demonstrates to be 0.7012. 
+I used the predictors that are most likely to affect birthweight based on intuition. While the The summary of the linear model suggests that all the variables selected were statistically significant predictors of `birthweight.` The adjusted R-squared demonstrates to be 0.7012. I used the predictors that are most likely to affect birth weight based on intuition. However, of the predictors I have selected, there are some predictors that could be interacting with each other. To account for this, I will be conducting one more multiple linear regression. 
+
+```{r}
+birthweight_lm_interaction = 
+  birthweight %>% 
+  lm(bwt ~babysex + bhead + blength + ppbmi +  gaweeks + momage + delwt + ppbmi*delwt + gaweeks*bhead + gaweeks*blength, data = .)
+summary(birthweight_lm_interaction)
+```
+Based on this result, it seems like there are some predictors that weren't statistically significant in including. While the adjusted r-squared value have increased slightly, it was at the cost of decreasing the degrees of freedom, so I will be keeping the previous model, `birthweight_lm` for future problems. 
 
 ```{r}
 birthweight = 
@@ -224,7 +233,7 @@ birthweight %>%
   )
 ```
 
-#comparing my moel to main effects and other models
+#comparing my model to main effects and other models
 ```{r}
 main_effects =
   birthweight %>% 
@@ -232,7 +241,7 @@ main_effects =
 
 three_way_interaction = 
   birthweight %>% 
-  lm(bwt ~ bhead * blength * babysex, data =. )
+  lm(bwt ~ bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead * blength * babysex, data =. )
 
 summary(main_effects)
 summary(three_way_interaction)
@@ -250,7 +259,7 @@ cv_results =
   mutate(
     my_model = map(train, \(df) lm(bwt ~babysex + bhead + blength + ppbmi +  gaweeks + momage + delwt, data = df)),
     main_effect_model = map(train, \(df) lm(bwt ~ blength +gaweeks, data = df)),
-    three_way_interaction_model = map(train, \(df) lm(bwt ~ bhead * blength * babysex, data =df))
+    three_way_interaction_model = map(train, \(df) lm(bwt ~ bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead * blength * babysex, data =df))
   ) %>% 
   mutate(
     my_model_rmse = map2_dbl(my_model, test, rmse),
@@ -258,6 +267,7 @@ cv_results =
     three_way_interaction_rmse = map2_dbl(three_way_interaction_model, test, rmse)
   )
 ```
+
 #RMSE comparison of the different models
 ```{r}
 cv_results %>% 
@@ -275,5 +285,4 @@ cv_results %>%
     y = "RMSE"
   )
 ```
-
-Through the violin plot, we can observe that the `main_effect_model` demonstrates the highest RMSE, indicating poor fit. `my_model` suggests to have the lowest RMSE, though it is not a significantly different from `three_way_interaction_model`. 
+Through the violin plot, we can observe that the `main_effect_model` demonstrates the highest RMSE, indicating poor fit. `my_model` suggests to have the lowest RMSE, though it is not drastically different from `three_way_interaction_model`. 

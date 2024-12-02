@@ -229,9 +229,12 @@ city_state_glm %>%
 
 <img src="homework_6_files/figure-gfm/unnamed-chunk-9-1.png" width="90%" />
 Based on the plot above, the highest odds ratio for solving homicides in
-Albuquerque, NM. On the other hand, th elowest odds ratio for solving
+Albuquerque, NM. On the other hand, the lowest odds ratio for solving
 homicides is observed in New York, NY, which is understandable as there
-is limited police compared to the crime committed in the city.
+is limited police compared to the crime committed in the city. The odds
+ratio’s confidence interval seems to be drastically expansive in the
+four cities with highest odds ratio: Fresno, CA, Minneapolis, MN, San
+Bernardino, CA, and Albuquerque, NM.
 
 ## Problem 3
 

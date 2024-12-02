@@ -24,6 +24,9 @@ options(
 
 scale_colour_discrete = scale_colour_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
+
+library(modelr)
+library(purrr)
 ```
 ## Problem 1
 ```{r}
@@ -105,32 +108,36 @@ bootstrap_results %>%
 
 ```{r}
 homicide = read.csv("data/homicide-data.csv") %>% 
-  unite("city_state", city:state, sep = ', ', na.rm = TRUE)%>% 
+  unite("city_state", city:state, sep = ', ', na.rm = TRUE) %>% 
   mutate(
     city_state = str_replace(city_state, "Milwaukee, wI", "Milwaukee, WI"),
     victim_age = as.numeric(victim_age),
-    unsolved = ifelse(disposition %in% c("Closed without arrest", "Open/No arrest"), 0, 1)
+    unsolved = ifelse(disposition == c("Closed without arrest", "Open/No arrest"), 0, 1)
   ) %>% 
   filter(
     !(city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL")),
-    victim_race %in% c("White", "Black")
-  )
+    victim_race %in% c("White", "Black"),
+    !is.na(victim_age)
+  ) 
 ```
 
-## glm
+## glm fpr Baltimore
 ```{r}
 baltimore =
   homicide %>% 
   filter(city_state == "Baltimore, MD") 
 
 baltimore_glm = 
-  baltimore%>% 
-  glm(unsolved ~ victim_age + victim_race + victim_sex, data =., family = binomial()) %>% 
-  broom::tidy(conf.int = TRUE) %>% 
+  baltimore %>% 
+  glm(unsolved ~ victim_age + victim_sex + victim_race, data = ., family = binomial()) %>% 
+  broom::tidy() %>% 
+  filter(term == "victim_sexMale") %>% 
   mutate(
-    OR = exp(estimate)) %>% 
-  select(term, log_OR = estimate, OR, conf.low, conf.high) %>% 
-  knitr::kable(digits = 4)
+    OR = exp(estimate),
+    CI_low = exp(estimate - 1.96 * std.error),
+    CI_upper = exp(estimate + 1.96 * std.error)) %>% 
+  select(term, log_OR = estimate, OR, CI_low, CI_upper) %>% 
+  knitr::kable(digits = 3)
 
 ```
 ## each cities
@@ -152,45 +159,121 @@ city_state_glm =
   mutate(
     glm_result = map(data,glm_city)
     ) %>%
-  filter(term == "victim_sexMale") %>% 
   unnest(glm_result) %>% 
-  select(term, log_OR = estimate, OR, conf.low, conf.high)
+  filter(term == "victim_sexMale") %>% 
+  select(city_state,OR, CI_low, CI_upper)
 
-
-
+city_state_glm %>% 
+  knitr::kable(digits = 3)
+```
+## Plotting Oddds Ratio of Each City State 
+```{r}
+city_state_glm %>% 
+  ggplot(aes(x= reorder(city_state, OR), y = OR))+
+  geom_point()+
+  geom_errorbar(aes(ymin= CI_low, max = CI_upper)) +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust =1, hjust = 1, size = 8)) +
+  labs(
+    title = "Odds Ratio for each City State with Confidence Intervals",
+    x = "City State",
+    y = "Odds Ratio"
+  )
 ```
 
 # Problem 3
 ```{r}
 birthweight = read_csv("data/birthweight.csv") %>% 
+  janitor::clean_names() %>% 
   mutate(
-    babysex = as.factor(babysex),
-    babysex = case_match(babysex,
-      1 ~ "male",
-      2 ~ "female"
-    ),
-    frace = case_match(
-      frace,
-      1 ~ "White",
-      2~ "Black",
-      3 ~ "Asian", 
-      4 ~ "Puerto Rican",
-      8 ~ "Other",
-      9 ~ "Unknown"
-    ),
-    malform = case_match(
-      malform,
-      0 ~ "absent",
-      1 ~ "present"
-    ),
-    mrace = case_match(
-      mrace,
-      1 ~ "White",
-      2 ~ "Black",
-      3 ~ "Asian",
-      4 ~ "Puerto Rican",
-      8 ~ "Other"
-    )) %>% 
-  drop_na()
+    babysex = factor(babysex, labels = c("Male", "Female"), levels = c(1,2)),
+    frace = factor(frace, labels = c("White", "Black", "Asian", "Puerto Rican", "Other", "Unknown"), levels = c(1,2,3,4,8,9)),
+    malform = factor(malform, labels = c("absent", "present"), levels = c(0,1)),
+    mrace = factor(mrace, labels= c("White", "Black", "Asian", "Puerto Rican", "Other"), levels = c(1,2,3,4,8))
+  )
+
+sum(is.na(birthweight))
+```
+Based on this result, `r sum(is.na(birthweight))`,all the values seem to be present.
+
+## My birthweight model
+```{r}
+birthweight_lm = 
+  birthweight %>% 
+  lm(bwt ~babysex + bhead + blength + ppbmi +  gaweeks + momage + delwt, data = .)
+summary(birthweight_lm)
+```
+The summary of the linear model suggests that all the variables selected were statistically significant predictors of `birthweight.` The adjusted R-squared demonstrates to be 0.7012. 
+
+```{r}
+birthweight = 
+  birthweight %>% 
+  modelr::add_predictions(birthweight_lm) %>% 
+  modelr::add_residuals(birthweight_lm)
 ```
 
+```{r}
+birthweight %>% 
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "Resduals vs. Predicted Values for My Model",
+    x = "Predicted Values", 
+    y = "Residuals"
+  )
+```
+
+#comparing my moel to main effects and other models
+```{r}
+main_effects =
+  birthweight %>% 
+  lm(bwt ~ blength +gaweeks, data = .)
+
+three_way_interaction = 
+  birthweight %>% 
+  lm(bwt ~ bhead * blength * babysex, data =. )
+
+summary(main_effects)
+summary(three_way_interaction)
+```
+# comparison between my model and other models via corss-validated prediction error
+```{r}
+cv = 
+  crossv_mc(birthweight, 100) %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble)
+  )
+cv_results = 
+  cv %>% 
+  mutate(
+    my_model = map(train, \(df) lm(bwt ~babysex + bhead + blength + ppbmi +  gaweeks + momage + delwt, data = df)),
+    main_effect_model = map(train, \(df) lm(bwt ~ blength +gaweeks, data = df)),
+    three_way_interaction_model = map(train, \(df) lm(bwt ~ bhead * blength * babysex, data =df))
+  ) %>% 
+  mutate(
+    my_model_rmse = map2_dbl(my_model, test, rmse),
+    main_effect_rmse = map2_dbl(main_effect_model, test, rmse),
+    three_way_interaction_rmse = map2_dbl(three_way_interaction_model, test, rmse)
+  )
+```
+#RMSE comparison of the different models
+```{r}
+cv_results %>% 
+  select(contains("rmse")) %>% 
+  pivot_longer(everything(),
+               names_to = "model",
+               values_to = "rmse",
+               names_prefix = "rmse ") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) +
+  geom_violin()+
+  labs(
+    title = "3 Model comparison via RMSE",
+    x = "Model Type",
+    y = "RMSE"
+  )
+```
+
+Through the violin plot, we can observe that the `main_effect_model` demonstrates the highest RMSE, indicating poor fit. `my_model` suggests to have the lowest RMSE, though it is not a significantly different from `three_way_interaction_model`. 
